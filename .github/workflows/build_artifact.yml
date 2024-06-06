@@ -1,0 +1,24 @@
+name: Build tippecanoe artifact
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: build tippecanoe
+        run: |
+          git clone https://github.com/felt/tippecanoe.git
+          cd tippecanoe
+          make -j
+          make install
+          
+      - name: upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: tippecanoe
+          path: /usr/local/bin/tippecanoe
