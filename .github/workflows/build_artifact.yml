@@ -26,3 +26,5 @@ jobs:
         run: |
           TAG=$(curl -s https://api.github.com/repos/felt/tippecanoe/tags | jq '.[0].name | sub("[a-zA-Z]";"")')
           gh release create --latest --title "$TAG" tippecanoe/tippecanoe.tar.gz
+        env:
+          GH_TOKEN: ${{ github.token }}
