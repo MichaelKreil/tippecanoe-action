@@ -1,9 +1,8 @@
-name: 'Install Tippecanoe'
-description: 'Install tippecanoe into workflow`s environment'
-author: 'MichaelKreil'
+name: "Install Tippecanoe"
+description: "Install tippecanoe into workflow`s environment"
+author: "MichaelKreil"
 runs:
   using: "composite"
   steps:
-    - run: echo "${{ github.action_path }}" >> $GITHUB_PATH
+    - run: curl -sL "https://github.com/MichaelKreil/tippecanoe-action/releases/latest/download/tippecanoe.tar.gz" | tar -zxf - -C /usr/local/bin/
       shell: bash
-      
