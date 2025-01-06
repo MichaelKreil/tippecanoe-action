@@ -29,7 +29,7 @@ jobs:
 
       - name: upload binary
         run: |
-          TAG=./tippecanoe/tippecanoe --version 2>&1 | ggrep -oP '\d+\.\d+\.\d+'
+          TAG=./tippecanoe/tippecanoe --version 2>&1 | grep -oP '\d+\.\d+\.\d+'
           echo "tag: $TAG"
           gh release create --latest --title "$TAG" "$TAG" || true
           gh release upload "$TAG" tippecanoe/tippecanoe.tar.gz
