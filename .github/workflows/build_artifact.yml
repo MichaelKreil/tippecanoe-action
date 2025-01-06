@@ -16,6 +16,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      
+      - name: install dependencies
+        run: apt-get install -y gcc g++ make libsqlite3-dev zlib1g-dev
 
       - name: build tippecanoe
         run: |
