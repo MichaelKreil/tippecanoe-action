@@ -29,8 +29,9 @@ jobs:
 
       - name: upload binary
         run: |
-          TAG=$(curl -s https://api.github.com/repos/felt/tippecanoe/tags | jq -r '.[0].name | sub("[a-zA-Z]";"")')
+          TAG=./tippecanoe/tippecanoe --version 2>&1 | ggrep -oP '\d+\.\d+\.\d+'
+          echo "tag: $TAG"
           gh release create --latest --title "$TAG" "$TAG" || true
-          gh release upload "$TAG" tippecanoe/tippecanoe.tar.gz --clobber
+          gh release upload "$TAG" tippecanoe/tippecanoe.tar.gz
         env:
           GH_TOKEN: ${{ github.token }}
