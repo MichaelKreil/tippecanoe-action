@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: install dependencies
         run: sudo apt-get install -y gcc g++ make libsqlite3-dev zlib1g-dev
 
@@ -29,9 +29,14 @@ jobs:
 
       - name: upload binary
         run: |
-          TAG=./tippecanoe/tippecanoe --version 2>&1 | grep -oP '\d+\.\d+\.\d+'
+          # Use command substitution to assign the version to TAG
+          TAG=$(./tippecanoe/tippecanoe --version 2>&1 | grep -oP '\d+\.\d+\.\d+')
           echo "tag: $TAG"
+
+          # Create a (latest) release, ignoring error if it already exists
           gh release create --latest --title "$TAG" "$TAG" || true
+
+          # Upload artifact to the release
           gh release upload "$TAG" tippecanoe/tippecanoe.tar.gz
         env:
           GH_TOKEN: ${{ github.token }}
