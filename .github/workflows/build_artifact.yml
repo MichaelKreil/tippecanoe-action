@@ -24,12 +24,12 @@ jobs:
         run: |
           # Use command substitution to assign the latest version to TAG
           TAG=$(gh release list --exclude-drafts --exclude-pre-releases -R felt/tippecanoe --json tagName --jq ".[0].tagName")
-          echo "::debug::TAG=$TAG"
+          echo "TAG = $TAG"
           echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
 
-          gh release view -R michaelkreil/tippecanoe-action $TAG
+          gh release view -R michaelkreil/tippecanoe-action "$TAG"
           IS_NEW_VERSION=$?
-          echo "::debug::IS_NEW_VERSION=$IS_NEW_VERSION"
+          echo "IS_NEW_VERSION = $IS_NEW_VERSION"
           echo "IS_NEW_VERSION=$IS_NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: build tippecanoe
