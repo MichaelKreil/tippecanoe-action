@@ -27,7 +27,7 @@ jobs:
           echo "TAG = $TAG"
           echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
 
-          gh release view -R michaelkreil/tippecanoe-action "$TAG"
+          gh release view -R michaelkreil/tippecanoe-action "$TAG" 2>&1 > /dev/null 
           IS_NEW_VERSION=$?
           echo "IS_NEW_VERSION = $IS_NEW_VERSION"
           echo "IS_NEW_VERSION=$IS_NEW_VERSION" >> "$GITHUB_OUTPUT"
