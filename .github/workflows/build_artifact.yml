@@ -17,26 +17,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: install dependencies
-        run: sudo apt-get install -y gcc g++ make libsqlite3-dev zlib1g-dev
+      - name: check version
+        id: check
+        run: |
+          # Use command substitution to assign the latest version to TAG
+          TAG=$(gh release list --exclude-drafts --exclude-pre-releases -R felt/tippecanoe --json tagName --jq ".[0].tagName")
+          echo "::debug::TAG=$TAG"
+          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+
+          gh release view -R michaelkreil/tippecanoe-action $TAG
+          IS_NEW_VERSION=$?
+          echo "::debug::IS_NEW_VERSION=$IS_NEW_VERSION"
+          echo "IS_NEW_VERSION=$IS_NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: build tippecanoe
+        if: ${{ steps.check.outputs.IS_NEW_VERSION == '1' }}
+        env:
+          TAG: ${{ steps.check.outputs.TAG }}
         run: |
-          git clone --depth 1 https://github.com/felt/tippecanoe.git
-          cd tippecanoe
+          sudo apt-get install -y gcc g++ make libsqlite3-dev zlib1g-dev
+          curl -L "https://github.com/felt/tippecanoe/archive/refs/tags/$TAG.tar.gz" | tar xz
+          cd "tippecanoe-$TAG"
           make -j
-          tar -czf tippecanoe.tar.gz tile-join tippecanoe tippecanoe-enumerate tippecanoe-decode tippecanoe-json-tool tippecanoe-overzoom
+          tar -czf ~/tippecanoe.tar.gz tile-join tippecanoe tippecanoe-enumerate tippecanoe-decode tippecanoe-json-tool tippecanoe-overzoom
 
       - name: upload binary
+        if: ${{ steps.check.outputs.IS_NEW_VERSION == '1' }}
+        env:
+          TAG: ${{ steps.check.outputs.TAG }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # Use command substitution to assign the version to TAG
-          TAG=$(./tippecanoe/tippecanoe --version 2>&1 | grep -oP '\d+\.\d+\.\d+')
-          echo "tag: $TAG"
-
           # Create a (latest) release, ignoring error if it already exists
           gh release create --latest --title "$TAG" "$TAG" || true
 
           # Upload artifact to the release
-          gh release upload "$TAG" tippecanoe/tippecanoe.tar.gz
-        env:
-          GH_TOKEN: ${{ github.token }}
+          gh release upload "$TAG" ~/tippecanoe.tar.gz
