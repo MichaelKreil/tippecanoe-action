@@ -22,20 +22,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Use command substitution to assign the latest version to TAG
+          # Fetch the latest tag from the felt/tippecanoe repository
           TAG=$(gh release list --exclude-drafts --exclude-pre-releases -R felt/tippecanoe --json tagName --jq ".[0].tagName")
           echo "TAG = $TAG"
-          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+          
+          if [[ -z "$TAG" ]]; then
+            echo "Error: No tags found in felt/tippecanoe repository."
+            exit 1
+          fi
 
-          gh release view -R michaelkreil/tippecanoe-action "$TAG" 2>&1 > /dev/null 
-          IS_NEW_VERSION=$?
-          echo "IS_NEW_VERSION = $IS_NEW_VERSION"
-          echo "IS_NEW_VERSION=$IS_NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+          # Check if the tag exists in michaelkreil/tippecanoe-action
+          if gh release view -R michaelkreil/tippecanoe-action "$TAG" > /dev/null 2>&1; then
+            echo "IS_NEW_VERSION=0" >> "$GITHUB_ENV"
+            echo "no new version found, aborting"
+          else
+            echo "IS_NEW_VERSION=1" >> "$GITHUB_ENV"
+            echo "new version found, building"
+          fi
 
       - name: build tippecanoe
-        if: ${{ steps.check.outputs.IS_NEW_VERSION == '1' }}
-        env:
-          TAG: ${{ steps.check.outputs.TAG }}
+        if: env.IS_NEW_VERSION == '1'
         run: |
           sudo apt-get install -y gcc g++ make libsqlite3-dev zlib1g-dev
           curl -L "https://github.com/felt/tippecanoe/archive/refs/tags/$TAG.tar.gz" | tar xz
@@ -44,9 +52,9 @@ jobs:
           tar -czf ~/tippecanoe.tar.gz tile-join tippecanoe tippecanoe-enumerate tippecanoe-decode tippecanoe-json-tool tippecanoe-overzoom
 
       - name: upload binary
-        if: ${{ steps.check.outputs.IS_NEW_VERSION == '1' }}
+        if: env.IS_NEW_VERSION == '1'
         env:
-          TAG: ${{ steps.check.outputs.TAG }}
+          TAG: ${{ env.TAG }}
           GH_TOKEN: ${{ github.token }}
         run: |
           # Create a (latest) release, ignoring error if it already exists
