@@ -70,9 +70,6 @@ jobs:
           - runner: macos-latest
             os: darwin
             arch: arm64
-          - runner: macos-13
-            os: darwin
-            arch: x64
 
     runs-on: ${{ matrix.runner }}
     env:
