@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:
   schedule:
     - cron: "42 5 1 * *"  # Run on the 1st of each month at 5:42 AM UTC
 
@@ -12,13 +12,16 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  check-version:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.check.outputs.tag }}
+      is_new_version: ${{ steps.check.outputs.is_new_version }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: check version
+      - name: Check version
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
@@ -26,40 +29,90 @@ jobs:
           # Fetch the latest tag from the felt/tippecanoe repository
           TAG=$(gh release list --exclude-drafts --exclude-pre-releases -R felt/tippecanoe --json tagName --jq ".[0].tagName")
           echo "TAG = $TAG"
-          
+
           if [[ -z "$TAG" ]]; then
             echo "Error: No tags found in felt/tippecanoe repository."
             exit 1
           fi
 
-          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
           # Check if the tag exists in michaelkreil/tippecanoe-action
           if gh release view -R michaelkreil/tippecanoe-action "$TAG" > /dev/null 2>&1; then
-            echo "IS_NEW_VERSION=0" >> "$GITHUB_ENV"
-            echo "no new version found, aborting"
+            echo "is_new_version=false" >> "$GITHUB_OUTPUT"
+            echo "No new version found"
           else
-            echo "IS_NEW_VERSION=1" >> "$GITHUB_ENV"
-            echo "new version found, building"
+            echo "is_new_version=true" >> "$GITHUB_OUTPUT"
+            echo "New version found, will build"
           fi
 
-      - name: build tippecanoe
-        if: env.IS_NEW_VERSION == '1'
+  build:
+    needs: check-version
+    if: needs.check-version.outputs.is_new_version == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os: linux
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            os: linux
+            arch: arm64
+          - runner: macos-latest
+            os: darwin
+            arch: arm64
+          - runner: macos-13
+            os: darwin
+            arch: x64
+
+    runs-on: ${{ matrix.runner }}
+    env:
+      TAG: ${{ needs.check-version.outputs.tag }}
+
+    steps:
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'linux'
         run: |
+          sudo apt-get update
           sudo apt-get install -y gcc g++ make libsqlite3-dev zlib1g-dev
+
+      - name: Build tippecanoe
+        run: |
           curl -L "https://github.com/felt/tippecanoe/archive/refs/tags/$TAG.tar.gz" | tar xz
           cd "tippecanoe-$TAG"
           make -j
-          tar -czf ~/tippecanoe.tar.gz tile-join tippecanoe tippecanoe-enumerate tippecanoe-decode tippecanoe-json-tool tippecanoe-overzoom
+          tar -czf ~/tippecanoe-${{ matrix.os }}-${{ matrix.arch }}.tar.gz tile-join tippecanoe tippecanoe-enumerate tippecanoe-decode tippecanoe-json-tool tippecanoe-overzoom
 
-      - name: upload binary
-        if: env.IS_NEW_VERSION == '1'
-        env:
-          TAG: ${{ env.TAG }}
-          GH_TOKEN: ${{ github.token }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tippecanoe-${{ matrix.os }}-${{ matrix.arch }}
+          path: ~/tippecanoe-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
+          retention-days: 1
+
+  release:
+    needs: [check-version, build]
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.check-version.outputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release and upload binaries
         run: |
-          # Create a (latest) release, ignoring error if it already exists
+          # Create release, ignoring error if it already exists
           gh release create --latest --title "$TAG" "$TAG" || true
 
-          # Upload artifact to the release
-          gh release upload "$TAG" ~/tippecanoe.tar.gz
+          # Upload all artifacts to the release
+          for file in artifacts/*/*.tar.gz; do
+            echo "Uploading $file"
+            gh release upload "$TAG" "$file" --clobber
+          done

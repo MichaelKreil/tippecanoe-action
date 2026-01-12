@@ -1,5 +1,5 @@
 name: "Install Tippecanoe"
-description: "Install tippecanoe into workflow`s environment"
+description: "Install tippecanoe into workflow's environment"
 author: "MichaelKreil"
 branding:
   icon: "map"
@@ -7,5 +7,35 @@ branding:
 runs:
   using: "composite"
   steps:
-    - run: curl -sL "https://github.com/MichaelKreil/tippecanoe-action/releases/latest/download/tippecanoe.tar.gz" | tar -zxf - -C /usr/local/bin/
+    - name: Install tippecanoe
       shell: bash
+      run: |
+        # Detect OS
+        case "$RUNNER_OS" in
+          Linux)  OS="linux" ;;
+          macOS)  OS="darwin" ;;
+          *)
+            echo "::error::Unsupported OS: $RUNNER_OS"
+            exit 1
+            ;;
+        esac
+
+        # Detect architecture
+        case "$(uname -m)" in
+          x86_64)       ARCH="x64" ;;
+          aarch64|arm64) ARCH="arm64" ;;
+          *)
+            echo "::error::Unsupported architecture: $(uname -m)"
+            exit 1
+            ;;
+        esac
+
+        ARTIFACT="tippecanoe-${OS}-${ARCH}.tar.gz"
+        URL="https://github.com/MichaelKreil/tippecanoe-action/releases/latest/download/${ARTIFACT}"
+
+        echo "Platform: ${OS}-${ARCH}"
+        echo "Downloading: ${URL}"
+
+        curl -sL "$URL" | sudo tar -zxf - -C /usr/local/bin/
+
+        echo "Installed: $(tippecanoe --version)"
