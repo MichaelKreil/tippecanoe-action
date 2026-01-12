@@ -1,6 +1,9 @@
 name: "Install Tippecanoe"
 description: "Install tippecanoe into workflow`s environment"
 author: "MichaelKreil"
+branding:
+  icon: "map"
+  color: "blue"
 runs:
   using: "composite"
   steps:
