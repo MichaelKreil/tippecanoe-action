@@ -25,6 +25,7 @@ jobs:
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           # Fetch the latest tag from the felt/tippecanoe repository
           TAG=$(gh release list --exclude-drafts --exclude-pre-releases -R felt/tippecanoe --json tagName --jq ".[0].tagName")
@@ -37,7 +38,14 @@ jobs:
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-          # Check if the tag exists in michaelkreil/tippecanoe-action
+          # Force rebuild for push and workflow_dispatch triggers
+          if [[ "$EVENT_NAME" != "schedule" ]]; then
+            echo "is_new_version=true" >> "$GITHUB_OUTPUT"
+            echo "Trigger: $EVENT_NAME - forcing rebuild"
+            exit 0
+          fi
+
+          # For scheduled runs, check if the tag already exists
           if gh release view -R michaelkreil/tippecanoe-action "$TAG" > /dev/null 2>&1; then
             echo "is_new_version=false" >> "$GITHUB_OUTPUT"
             echo "No new version found"
